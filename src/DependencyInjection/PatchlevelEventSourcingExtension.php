@@ -87,10 +87,13 @@ use Patchlevel\EventSourcing\WatchServer\SocketWatchServerClient;
 use Patchlevel\EventSourcing\WatchServer\WatchListener;
 use Patchlevel\EventSourcing\WatchServer\WatchServer;
 use Patchlevel\EventSourcing\WatchServer\WatchServerClient;
+use Patchlevel\EventSourcingBundle\Controller\DefaultController;
+use Patchlevel\EventSourcingBundle\Controller\ProjectionController;
 use Patchlevel\EventSourcingBundle\Controller\StoreController;
 use Patchlevel\EventSourcingBundle\DataCollector\EventSourcingCollector;
 use Patchlevel\EventSourcingBundle\DataCollector\MessageListener;
 use Patchlevel\EventSourcingBundle\Listener\ProjectionistAutoBootListener;
+use Patchlevel\EventSourcingBundle\Twig\EventSourcingExtension;
 use Patchlevel\Hydrator\Hydrator;
 use Patchlevel\Hydrator\MetadataHydrator;
 use Psr\Log\LoggerInterface;
@@ -100,6 +103,7 @@ use Symfony\Component\DependencyInjection\ContainerInterface;
 use Symfony\Component\DependencyInjection\Reference;
 use Symfony\Component\HttpKernel\DependencyInjection\Extension;
 
+use Symfony\Component\Routing\RouterInterface;
 use function class_exists;
 use function sprintf;
 
@@ -655,11 +659,37 @@ final class PatchlevelEventSourcingExtension extends Extension
             return;
         }
 
+        $container->register(DefaultController::class)
+            ->setArguments([
+                new Reference('twig'),
+                new Reference(RouterInterface::class),
+            ])
+            ->addTag('controller.service_arguments');
+
         $container->register(StoreController::class)
             ->setArguments([
                 new Reference('twig'),
                 new Reference(Store::class),
+                new Reference(AggregateRootRegistry::class),
+                new Reference(EventRegistry::class),
             ])
         ->addTag('controller.service_arguments');
+
+        $container->register(ProjectionController::class)
+            ->setArguments([
+                new Reference('twig'),
+                new Reference(Projectionist::class),
+                new Reference(Store::class),
+                new Reference(RouterInterface::class),
+            ])
+            ->addTag('controller.service_arguments');
+
+        $container->register(EventSourcingExtension::class)
+            ->setArguments([
+                new Reference(AggregateRootRegistry::class),
+                new Reference(EventRegistry::class),
+                new Reference(EventSerializer::class),
+            ])
+            ->addTag('twig.extension');
     }
 }
